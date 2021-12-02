@@ -6,7 +6,6 @@ dependencies:
   - python=3.9
   - pip
   - tqdm
-  - cudatoolkit=11.1
   - torchvision
   - pytorch
   - tensorboard

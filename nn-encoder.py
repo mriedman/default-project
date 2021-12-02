@@ -5,11 +5,39 @@ import argparse
 from tqdm import tqdm
 import torch
 from torchmetrics.image.fid import NoTrainInceptionV3
+import torch.optim as optim
 
 import util
 from model import *
 from trainer import evaluate, prepare_data_for_gan, prepare_data_for_inception
 
+
+class Encoder32(nn.Module):
+    def __init__(self, nz=128, ngf=256, bottom_width=4):
+        super().__init__()
+
+        '''self.l1 = nn.Linear(nz, (bottom_width ** 2) * ngf)
+        self.unfatten = nn.Unflatten(1, (ngf, bottom_width, bottom_width))
+        self.block2 = GBlock(ngf, ngf, upsample=True)
+        self.block3 = GBlock(ngf, ngf, upsample=True)
+        self.block4 = GBlock(ngf, ngf, upsample=True)
+        self.b5 = nn.BatchNorm2d(ngf)
+        self.c5 = nn.Conv2d(ngf, 3, 3, 1, padding=1)
+        self.activation = nn.ReLU(True)'''
+
+        self.fc1 = nn.Linear(3 * 32 * 32, ngf)
+        self.fc2 = nn.Linear(ngf, ngf)
+        self.fc3 = nn.Linear(ngf, nz)
+
+        '''nn.init.xavier_uniform_(self.l1.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.c5.weight.data, 1.0)'''
+
+    def forward(self, x):
+        x = torch.flatten(x, 1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
 def parse_args():
     r"""
@@ -27,13 +55,13 @@ def parse_args():
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        required=True,
+        default='./out/baseline-32-150k/ckpt/150000.pth',
         help="Path to checkpoint used for evaluation.",
     )
     parser.add_argument(
         "--im_size",
         type=int,
-        required=True,
+        default=32,
         help=(
             "Images are resized to this resolution. "
             "Models are automatically selected based on resolution."
@@ -59,32 +87,6 @@ def parse_args():
     )
 
     return parser.parse_args()
-
-
-def generate_submission(net_g, dataloader, nz, device, path="submission.pth"):
-    r"""
-    Generates Inception embeddings for leaderboard submission.
-    """
-
-    net_g.to(device).eval()
-    inception = NoTrainInceptionV3(
-        name="inception-v3-compat", features_list=["2048"]
-    ).to(device)
-
-    with torch.no_grad():
-        real_embs, fake_embs = [], []
-        for data, _ in tqdm(dataloader, desc="Generating Submission"):
-            reals, z = prepare_data_for_gan(data, nz, device)
-            fakes = net_g(z)
-            reals = inception(prepare_data_for_inception(reals, device))
-            fakes = inception(prepare_data_for_inception(fakes, device))
-            real_embs.append(reals)
-            fake_embs.append(fakes)
-        real_embs = torch.cat(real_embs)
-        fake_embs = torch.cat(fake_embs)
-        embs = torch.stack((real_embs, fake_embs)).permute(1, 0, 2).cpu()
-
-    torch.save(embs, path)
 
 
 def eval(args):
@@ -119,14 +121,23 @@ def eval(args):
         args.data_dir, args.im_size, args.batch_size, eval_size, num_workers
     )
 
-    if args.submit:
-        # Generate leaderboard submission
-        generate_submission(net_g, eval_dataloader, nz, args.device)
+    enc = Encoder32()
+    opt = optim.SGD(enc.parameters(), lr=0.01)
+    loss_func = nn.MSELoss()
 
-    else:
-        # Evaluate models
-        metrics = evaluate(net_g, net_d, eval_dataloader, nz, args.device)
-        pprint.pprint(metrics)
+    for _ in range(10**4):
+        x = torch.randn((args.batch_size, 128))
+        z = net_g.forward(x)
+        opt.zero_grad()
+        out = enc(z)
+        loss = loss_func(out, x)
+        if _%10 == 0:
+            print(_)
+            print(loss)
+        loss.backward()
+        opt.step()
+
+    print()
 
 
 if __name__ == "__main__":
