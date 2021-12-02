@@ -122,15 +122,17 @@ def eval(args):
     )
 
     enc = Encoder32()
-    opt = optim.SGD(enc.parameters(), lr=0.01)
+    opt = optim.SGD(enc.parameters(), lr=0.05)
     loss_func = nn.MSELoss()
 
     for _ in range(10**4):
-        x = torch.randn((args.batch_size, 128))
-        z = net_g.forward(x)
+        target = torch.randn((args.batch_size, 128))
+        z = net_g.forward(target)
         opt.zero_grad()
         out = enc(z)
-        loss = loss_func(out, x)
+        loss = loss_func(out, target)
+        loss.backward()
+        opt.step()
         if _%10 == 0:
             print(_)
             print(loss)
