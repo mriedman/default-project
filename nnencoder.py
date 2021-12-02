@@ -141,7 +141,8 @@ def eval(args):
     )
 
     enc = EncoderGBlock32()
-    opt = optim.SGD(enc.parameters(), lr=0.05)
+    # opt = optim.SGD(enc.parameters(), lr=0.01)
+    opt = optim.Adam(net_d.parameters(), 2e-4, (0.0, 0.9))
     loss_func = nn.MSELoss()
 
     for _ in range(10**4):

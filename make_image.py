@@ -9,7 +9,7 @@ from torchvision import datasets, transforms
 import os
 from model import *
 import util
-from nnencoder import Encoder32
+from nnencoder import Encoder32, EncoderGBlock32
 
 def parse_args():
     r"""
@@ -103,7 +103,7 @@ def eval(args):
     net_d.load_state_dict(state_dict["net_d"])
 
     # load encoder
-    enc = torch.load('enc-100', map_location=torch.device('cpu'))
+    enc = torch.load('enc-gb-100', map_location=torch.device('cpu'))
 
     z = torch.randn((args.batch_size * 10, 128))
     x = net_g(z)
