@@ -139,7 +139,7 @@ def train(args):
 
     # Configure models
     if args.im_size == 32:
-        net_g = MAF(input_size=3 * 32 * 32, hidden_size=128, n_hidden=1, n_flows=5)
+        net_g = MAF(input_size=3 * 32 * 32, hidden_size=128, n_hidden=1, n_flows=5).to(args.device)
         net_d = Discriminator32()
     elif args.im_size == 64:
         net_g = MAF(input_size=3 * 64 * 64, hidden_size=128, n_hidden=1, n_flows=5)
