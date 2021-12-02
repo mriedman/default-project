@@ -28,6 +28,7 @@ class Encoder32(nn.Module):
         self.fc1 = nn.Linear(3 * 32 * 32, ngf)
         self.fc2 = nn.Linear(ngf, ngf)
         self.fc3 = nn.Linear(ngf, nz)
+        self.fc4 = nn.Linear(ngf, nz)
 
         '''nn.init.xavier_uniform_(self.l1.weight.data, 1.0)
         nn.init.xavier_uniform_(self.c5.weight.data, 1.0)'''
@@ -36,7 +37,8 @@ class Encoder32(nn.Module):
         x = torch.flatten(x, 1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = F.relu(self.fc3(x))
+        x = self.fc4(x)
         return x
 
 def parse_args():
