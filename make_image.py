@@ -1,45 +1,14 @@
-import os
-import pprint
+from torchvision.utils import save_image, make_grid
+# Copyright (c) 2021 Rui Shu
 import argparse
-
-from tqdm import tqdm
+import numpy as np
 import torch
-from torchmetrics.image.fid import NoTrainInceptionV3
-import torch.optim as optim
-
-import util
+import tqdm
+from pprint import pprint
+from torchvision import datasets, transforms
+import os
 from model import *
-from trainer import evaluate, prepare_data_for_gan, prepare_data_for_inception
-
-
-class Encoder32(nn.Module):
-    def __init__(self, nz=128, ngf=256, bottom_width=4):
-        super().__init__()
-
-        '''self.l1 = nn.Linear(nz, (bottom_width ** 2) * ngf)
-        self.unfatten = nn.Unflatten(1, (ngf, bottom_width, bottom_width))
-        self.block2 = GBlock(ngf, ngf, upsample=True)
-        self.block3 = GBlock(ngf, ngf, upsample=True)
-        self.block4 = GBlock(ngf, ngf, upsample=True)
-        self.b5 = nn.BatchNorm2d(ngf)
-        self.c5 = nn.Conv2d(ngf, 3, 3, 1, padding=1)
-        self.activation = nn.ReLU(True)'''
-
-        self.fc1 = nn.Linear(3 * 32 * 32, ngf)
-        self.fc2 = nn.Linear(ngf, ngf)
-        self.fc3 = nn.Linear(ngf, nz)
-        self.fc4 = nn.Linear(ngf, nz)
-
-        '''nn.init.xavier_uniform_(self.l1.weight.data, 1.0)
-        nn.init.xavier_uniform_(self.c5.weight.data, 1.0)'''
-
-    def forward(self, x):
-        x = torch.flatten(x, 1)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = self.fc4(x)
-        return x
+import util
 
 def parse_args():
     r"""
@@ -90,6 +59,20 @@ def parse_args():
 
     return parser.parse_args()
 
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('--iter_max',  type=int, default=1000000, help="Number of training iterations")
+parser.add_argument('--iter_save', type=int, default=10000,   help="Save model every n iterations")
+parser.add_argument('--run',       type=int, default=3,       help="Run ID. In case you want to run replicates")
+parser.add_argument('--overwrite', type=int, default=0,       help="Flag for overwriting")
+args = parser.parse_args()
+layout = [
+    ('model={:s}',  'fsvae'),
+    ('run={:04d}', args.run)
+]
+model_name = '_'.join([t.format(v) for (t, v) in layout])
+pprint(vars(args))
+print('Model name:', model_name)
+
 
 def eval(args):
     r"""
@@ -118,31 +101,16 @@ def eval(args):
     net_g.load_state_dict(state_dict["net_g"])
     net_d.load_state_dict(state_dict["net_d"])
 
-    # Configures eval dataloader
-    _, eval_dataloader = util.get_dataloaders(
-        args.data_dir, args.im_size, args.batch_size, eval_size, num_workers
-    )
+    # load encoder
+    enc = torch.load('net-g-600', map_location=torch.device('cpu'))
 
-    enc = Encoder32()
-    opt = optim.SGD(enc.parameters(), lr=0.05)
-    loss_func = nn.MSELoss()
-
-    for _ in range(10**4):
-        target = torch.randn((args.batch_size, 128))
-        z = net_g.forward(target)
-        opt.zero_grad()
-        out = enc(z)
-        loss = loss_func(out, target)
-        if _%10 == 0:
-            print(_)
-            print(loss)
-        if _%100 == 0:
-            torch.save(enc, f"./enc-{_}")
-        loss.backward()
-        opt.step()
-
-
-
+    z = torch.randn((args.batch_size * 10, 128))
+    x = net_g(z)
+    x1 = x.reshape((200,3,32,32))
+    save_image(make_grid(x1, nrow=20), 'try-1.png')
+    x = net_g(enc(z))
+    x1 = x.reshape((200, 3, 32, 32))
+    save_image(make_grid(x1, nrow=20), 'try-2.png')
 
 if __name__ == "__main__":
     eval(parse_args())
