@@ -131,8 +131,6 @@ def eval(args):
         opt.zero_grad()
         out = enc(z)
         loss = loss_func(out, target)
-        loss.backward()
-        opt.step()
         if _%10 == 0:
             print(_)
             print(loss)
