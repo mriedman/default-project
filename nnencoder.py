@@ -30,6 +30,11 @@ class Encoder32(nn.Module):
         self.fc3 = nn.Linear(ngf, ngf)
         self.fc4 = nn.Linear(ngf, nz)
 
+        torch.nn.init.xavier_uniform(self.fc1.weight)
+        torch.nn.init.xavier_uniform(self.fc2.weight)
+        torch.nn.init.xavier_uniform(self.fc3.weight)
+        torch.nn.init.xavier_uniform(self.fc4.weight)
+
         '''nn.init.xavier_uniform_(self.l1.weight.data, 1.0)
         nn.init.xavier_uniform_(self.c5.weight.data, 1.0)'''
 
