@@ -16,15 +16,6 @@ class Encoder32(nn.Module):
     def __init__(self, nz=128, ngf=256, bottom_width=4):
         super().__init__()
 
-        '''self.l1 = nn.Linear(nz, (bottom_width ** 2) * ngf)
-        self.unfatten = nn.Unflatten(1, (ngf, bottom_width, bottom_width))
-        self.block2 = GBlock(ngf, ngf, upsample=True)
-        self.block3 = GBlock(ngf, ngf, upsample=True)
-        self.block4 = GBlock(ngf, ngf, upsample=True)
-        self.b5 = nn.BatchNorm2d(ngf)
-        self.c5 = nn.Conv2d(ngf, 3, 3, 1, padding=1)
-        self.activation = nn.ReLU(True)'''
-
         self.fc1 = nn.Linear(3 * 32 * 32, ngf)
         self.fc2 = nn.Linear(ngf, ngf)
         self.fc3 = nn.Linear(ngf, ngf)
@@ -35,9 +26,6 @@ class Encoder32(nn.Module):
         torch.nn.init.xavier_uniform(self.fc3.weight)
         torch.nn.init.xavier_uniform(self.fc4.weight)
 
-        '''nn.init.xavier_uniform_(self.l1.weight.data, 1.0)
-        nn.init.xavier_uniform_(self.c5.weight.data, 1.0)'''
-
     def forward(self, x):
         x = torch.flatten(x, 1)
         x = F.relu(self.fc1(x))
@@ -45,6 +33,30 @@ class Encoder32(nn.Module):
         x = F.relu(self.fc3(x))
         x = self.fc4(x)
         return x
+
+class EncoderGBlock32(nn.Module):
+    def __init__(self, ndf=128):
+        super().__init__()
+
+        self.block1 = DBlockOptimized(3, ndf)
+        self.block2 = DBlock(ndf, ndf, downsample=True)
+        self.block3 = DBlock(ndf, ndf, downsample=False)
+        self.block4 = DBlock(ndf, ndf, downsample=False)
+        self.l5 = SNLinear(ndf, ndf)
+        self.activation = nn.ReLU(True)
+
+        nn.init.xavier_uniform_(self.l5.weight.data, 1.0)
+
+    def forward(self, x):
+        h = x
+        h = self.block1(h)
+        h = self.block2(h)
+        h = self.block3(h)
+        h = self.block4(h)
+        h = self.activation(h)
+        h = torch.sum(h, dim=(2, 3))
+        y = self.l5(h)
+        return y
 
 def parse_args():
     r"""
@@ -128,7 +140,7 @@ def eval(args):
         args.data_dir, args.im_size, args.batch_size, eval_size, num_workers
     )
 
-    enc = Encoder32()
+    enc = EncoderGBlock32()
     opt = optim.SGD(enc.parameters(), lr=0.05)
     loss_func = nn.MSELoss()
 
@@ -142,7 +154,7 @@ def eval(args):
             print(_)
             print(loss)
         if _%100 == 0:
-            torch.save(enc, f"./enc-{_}")
+            torch.save(enc, f"./enc-gb-{_}")
         loss.backward()
         opt.step()
 
