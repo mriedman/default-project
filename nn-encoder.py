@@ -27,7 +27,7 @@ class Encoder32(nn.Module):
 
         self.fc1 = nn.Linear(3 * 32 * 32, ngf)
         self.fc2 = nn.Linear(ngf, ngf)
-        self.fc3 = nn.Linear(ngf, nz)
+        self.fc3 = nn.Linear(ngf, ngf)
         self.fc4 = nn.Linear(ngf, nz)
 
         '''nn.init.xavier_uniform_(self.l1.weight.data, 1.0)
