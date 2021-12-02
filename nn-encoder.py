@@ -70,7 +70,7 @@ def parse_args():
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=64,
+        default=20,
         help="Minibatch size used during evaluation.",
     )
     parser.add_argument(
@@ -134,10 +134,12 @@ def eval(args):
         if _%10 == 0:
             print(_)
             print(loss)
+        if _%100 == 0:
+            torch.save(net_g, f"./net-g-{_}")
         loss.backward()
         opt.step()
 
-    print()
+
 
 
 if __name__ == "__main__":
