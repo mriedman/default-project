@@ -106,10 +106,10 @@ def eval(args):
     enc = torch.load('enc-gb-100', map_location=torch.device('cpu'))
 
     z = torch.randn((args.batch_size * 10, 128))
-    x = net_g(z)
+    x = net_g(z).detach()
     x1 = x.reshape((200,3,32,32))
     save_image(make_grid(x1, nrow=20), 'try-1.png')
-    x = net_g(enc(x))
+    x = net_g(enc(x)).detach()
     x1 = x.reshape((200, 3, 32, 32))
     save_image(make_grid(x1, nrow=20), 'try-2.png')
 

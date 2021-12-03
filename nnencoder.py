@@ -55,7 +55,7 @@ class EncoderGBlock32(nn.Module):
         h = self.block4(h)
         h = self.activation(h)
         h = torch.sum(h, dim=(2, 3))
-        y = self.l5(h)
+        y = h
         return y
 
 def parse_args():
