@@ -11,6 +11,7 @@ from model import *
 from trainer import *
 import util
 from nnencoder import Encoder32
+from sklearn.mixture import GaussianMixture
 
 def parse_args():
     r"""
@@ -109,7 +110,17 @@ def eval(args):
         reals, z = prepare_data_for_gan(data, nz, torch.device(args.device))
         z1 = enc(reals)
         x=net_g(torch.mean(z1, dim=0).reshape((1,-1)))
-        save_image(make_grid(x), 'beagle-1.png')
+        y = torch.mean(z1, dim=0).reshape((1, -1))
+        # x = net_g(torch.mean(z1, dim=0).reshape((1,-1)).repeat((10,1))+torch.randn((200,128))/3)
+        # save_image(make_grid(x), 'beagle-2.png')
+        save_image(make_grid(net_g(y.repeat((100, 1)) + torch.randn((100, 128)) / 10), nrow=10), 'beagle-2.png')
+        # save_image(make_grid(net_g(torch.randn((20,128)).repeat((10,1))+torch.randn((200,128))/3),nrow=20), 'try-f3.png')
+        m1 = torch.distributions.MultivariateNormal(y, torch.cov(torch.transpose(z1, 1, 0)) + torch.eye(128) * 1e-2)
+        save_image(make_grid(net_g(m1.sample((100,)).reshape((100, 128))), nrow=10), 'beagle-2.png')
+
+        gm = GaussianMixture(n_components=5).fit(z1)
+        save_image(make_grid(net_g(torch.Tensor(gm.sample(100)[0])), nrow=10), 'beagle-3.png')
+
         exit(0)
         print()
 

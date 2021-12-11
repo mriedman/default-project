@@ -5,8 +5,6 @@ import numpy as np
 
 
 class MaskedLinear(nn.Linear):
-    """Masked linear layer for MADE: takes in mask as input and masks out connections in the linear layers."""
-
     def __init__(self, input_size, output_size, mask):
         super().__init__(input_size, output_size)
         self.register_buffer("mask", mask)
@@ -16,11 +14,6 @@ class MaskedLinear(nn.Linear):
 
 
 class PermuteLayer(nn.Module):
-    """Layer to permute the ordering of inputs.
-
-    Because our data is 2-D, forward() and inverse() will reorder the data in the same way.
-    """
-
     def __init__(self, num_inputs):
         super(PermuteLayer, self).__init__()
         self.perm = np.array(np.arange(0, num_inputs)[::-1])
@@ -37,12 +30,6 @@ class PermuteLayer(nn.Module):
 
 
 class MADE(nn.Module):
-    """Masked Autoencoder for Distribution Estimation.
-    https://arxiv.org/abs/1502.03509
-
-    Uses sequential ordering as in the MAF paper.
-    Gaussian MADE to work with real-valued inputs"""
-
     def __init__(self, input_size, hidden_size, n_hidden):
         super().__init__()
         self.input_size = input_size
@@ -65,9 +52,6 @@ class MADE(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def create_masks(self):
-        """
-        Creates masks for sequential (natural) ordering.
-        """
         masks = []
         input_degrees = torch.arange(self.input_size)
         degrees = [input_degrees]  # corresponds to m(k) in paper
@@ -85,14 +69,8 @@ class MADE(nn.Module):
         return masks
 
     def forward(self, z):
-        """
-        Run the forward mapping (z -> x) for MAF through one MADE block.
-        :param z: Input noise of size (batch_size, self.input_size)
-        :return: (x, log_det). log_det should be 1-D (batch_dim,)
-        """
         x = torch.zeros_like(z)
 
-        # YOUR CODE STARTS HERE
         log_det = torch.zeros(z.shape[0])
         for i in range(z.shape[1]):
             nn_res = self.net(x)
@@ -101,28 +79,9 @@ class MADE(nn.Module):
             x[:, i] = (mean + z * torch.exp(log_stdev))[:, i]
             log_det -= log_stdev[:, i]
 
-        '''nn_res = self.net(z)
-        mean = nn_res[:, :nn_res.shape[1]//2]
-        log_stdev = nn_res[:, nn_res.shape[1]//2:]
-        x = mean + z * torch.exp(log_stdev)
-        log_det = -torch.sum(log_stdev)'''
-
-        # YOUR CODE ENDS HERE
-
         return x, log_det
 
     def inverse(self, x):
-        """
-        Run one inverse mapping (x -> z) for MAF through one MADE block.
-        :param x: Input data of size (batch_size, self.input_size)
-        :return: (z, log_det). log_det should be 1-D (batch_dim,)
-        """
-        # YOUR CODE STARTS HERE
-        '''nn_res = self.net(x)
-        mean = nn_res[:, :nn_res.shape[1] / 2]
-        log_stdev = nn_res[:, nn_res.shape[1] / 2:]
-        z = mean + x * torch.exp(log_stdev)
-        log_det = -torch.sum(log_stdev)'''
         z = torch.zeros_like(x)
         log_det = torch.zeros(x.shape[0])
         for i in range(x.shape[1]):
@@ -138,11 +97,6 @@ class MADE(nn.Module):
 
 
 class MAF(nn.Module):
-    """
-    Masked Autoregressive Flow, using MADE layers.
-    https://arxiv.org/abs/1705.07057
-    """
-
     def __init__(self, input_size, hidden_size, n_hidden, n_flows):
         super().__init__()
         self.input_size = input_size
@@ -164,12 +118,6 @@ class MAF(nn.Module):
         return z
 
     def log_probs(self, x):
-        """
-        Obtain log-likelihood p(x) through one pass of MADE
-        :param x: Input data of size (batch_size, self.input_size)
-        :return: log_prob. This should be a Python scalar.
-        """
-        # YOUR CODE STARTS HERE
         x1 = x[:, :].clone()
         # x1 = torch.zeros_like(x)
         log_prob = torch.zeros(())
@@ -180,25 +128,12 @@ class MAF(nn.Module):
         log_prob += torch.sum(element_wise)
         log_prob /= x.shape[0]
 
-        # YOUR CODE ENDS HERE
-
         return log_prob
 
     def loss(self, x):
-        """
-        Compute the loss.
-        :param x: Input data of size (batch_size, self.input_size)
-        :return: loss. This should be a Python scalar.
-        """
         return -self.log_probs(x)
 
     def sample(self, device, n):
-        """
-        Draw <n> number of samples from the model.
-        :param device: [cpu,cuda]
-        :param n: Number of samples to be drawn.
-        :return: x_sample. This should be a numpy array of size (n, self.input_size)
-        """
         with torch.no_grad():
             x_sample = torch.randn(n, self.input_size).to(device)
             for flow in self.nf[::-1]:
